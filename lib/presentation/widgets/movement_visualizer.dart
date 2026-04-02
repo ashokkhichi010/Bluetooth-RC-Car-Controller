@@ -3,19 +3,36 @@ import 'package:bluetooth_rc_car/domain/models/car_state.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/status_card.dart';
 import 'package:flutter/material.dart';
 
-class MovementVisualizer extends StatelessWidget {
+class MovementVisualizer extends StatefulWidget {
   const MovementVisualizer({
     required this.mode,
     required this.direction,
+    this.speed,
+    this.interactive = false,
+    this.onTap,
+    this.onDirectionChanged,
+    this.onInteractionEnd,
     super.key,
   });
 
   final CarMode mode;
   final MovementDirection direction;
+  final int? speed;
+  final bool interactive;
+  final VoidCallback? onTap;
+  final ValueChanged<MovementDirection>? onDirectionChanged;
+  final VoidCallback? onInteractionEnd;
+
+  @override
+  State<MovementVisualizer> createState() => _MovementVisualizerState();
+}
+
+class _MovementVisualizerState extends State<MovementVisualizer> {
+  MovementDirection? _lastDragDirection;
 
   @override
   Widget build(BuildContext context) {
-    final alignment = switch (direction) {
+    final alignment = switch (widget.direction) {
       MovementDirection.forward => Alignment.topCenter,
       MovementDirection.backward => Alignment.bottomCenter,
       MovementDirection.left => Alignment.centerLeft,
@@ -28,49 +45,156 @@ class MovementVisualizer extends StatelessWidget {
     };
 
     return StatusCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            mode == CarMode.lineFollower
-                ? 'Line Tracking'
-                : mode == CarMode.obstacleAvoidance
-                    ? 'Avoidance Path'
-                    : 'Motion Preview',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 20),
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.03),
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+      padding: const EdgeInsets.all(0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.interactive ? null : widget.onTap,
+            onTapDown: widget.interactive
+                ? (details) => _emitDirection(
+                      _directionFromPosition(details.localPosition, size),
+                    )
+                : null,
+            onPanStart: widget.interactive
+                ? (details) => _emitDirection(
+                      _directionFromPosition(details.localPosition, size),
+                    )
+                : null,
+            onPanUpdate: widget.interactive
+                ? (details) => _emitDirection(
+                      _directionFromPosition(details.localPosition, size),
+                    )
+                : null,
+            onPanEnd: widget.interactive ? (_) => _finishInteraction() : null,
+            onPanCancel: widget.interactive ? _finishInteraction : null,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.03),
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  const Positioned.fill(child: _PathOverlay()),
+                  Positioned(
+                    top: 14,
+                    left: 14,
+                    right: 14,
+                    child: Row(
+                      children: [
+                        Text(
+                          _titleForMode(widget.mode),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Spacer(),
+                        if (widget.speed != null)
+                          Text(
+                            'Speed ${widget.speed}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (widget.interactive)
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 14,
+                      child: Text(
+                        'Drag to control manually',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    )
+                  else
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 14,
+                      child: Text(
+                        'Tap to switch to manual control',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  AnimatedAlign(
+                    duration: AppConstants.defaultAnimationDuration,
+                    curve: Curves.easeOutCubic,
+                    alignment: alignment,
+                    child: Padding(
+                      padding: const EdgeInsets.all(30),
+                      child: _CarGlyph(direction: widget.direction),
+                    ),
+                  ),
                 ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
             ),
-            child: Stack(
-              children: [
-                const _PathOverlay(),
-                AnimatedAlign(
-                  duration: AppConstants.defaultAnimationDuration,
-                  curve: Curves.easeOutCubic,
-                  alignment: alignment,
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: _CarGlyph(direction: direction),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  void _emitDirection(MovementDirection direction) {
+    if (direction == _lastDragDirection) {
+      return;
+    }
+
+    _lastDragDirection = direction;
+    widget.onDirectionChanged?.call(direction);
+  }
+
+  void _finishInteraction() {
+    _lastDragDirection = null;
+    widget.onInteractionEnd?.call();
+  }
+
+  MovementDirection _directionFromPosition(Offset position, Size size) {
+    final dx = position.dx - (size.width / 2);
+    final dy = position.dy - (size.height / 2);
+    final deadZoneX = size.width * 0.14;
+    final deadZoneY = size.height * 0.14;
+
+    final horizontal = dx.abs() <= deadZoneX
+        ? 0
+        : dx.isNegative
+            ? -1
+            : 1;
+    final vertical = dy.abs() <= deadZoneY
+        ? 0
+        : dy.isNegative
+            ? -1
+            : 1;
+
+    return switch ((horizontal, vertical)) {
+      (0, -1) => MovementDirection.forward,
+      (0, 1) => MovementDirection.backward,
+      (-1, 0) => MovementDirection.left,
+      (1, 0) => MovementDirection.right,
+      (-1, -1) => MovementDirection.forwardLeft,
+      (1, -1) => MovementDirection.forwardRight,
+      (-1, 1) => MovementDirection.backwardLeft,
+      (1, 1) => MovementDirection.backwardRight,
+      _ => MovementDirection.stop,
+    };
+  }
+
+  String _titleForMode(CarMode mode) {
+    return switch (mode) {
+      CarMode.lineFollower => 'Follow Line',
+      CarMode.obstacleAvoidance => 'Auto Mode',
+      CarMode.manual => 'Manual Control',
+      CarMode.idle => 'Movement',
+    };
   }
 }
 
@@ -138,38 +262,20 @@ class _PathPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
-    final path = Path()
-      ..moveTo(size.width * 0.5, size.height)
-      ..quadraticBezierTo(
-        size.width * 0.15,
-        size.height * 0.65,
-        size.width * 0.32,
-        size.height * 0.35,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.48,
-        size.height * 0.12,
-        size.width * 0.5,
-        0,
-      );
+    final vertical = Path()
+      ..moveTo(size.width * 0.5, size.height * 0.08)
+      ..lineTo(size.width * 0.5, size.height * 0.92);
+    final horizontal = Path()
+      ..moveTo(size.width * 0.08, size.height * 0.5)
+      ..lineTo(size.width * 0.92, size.height * 0.5);
 
-    final altPath = Path()
-      ..moveTo(size.width * 0.5, size.height)
-      ..quadraticBezierTo(
-        size.width * 0.85,
-        size.height * 0.65,
-        size.width * 0.68,
-        size.height * 0.35,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.52,
-        size.height * 0.12,
-        size.width * 0.5,
-        0,
-      );
-
-    canvas.drawPath(path, paint);
-    canvas.drawPath(altPath, paint);
+    canvas.drawPath(vertical, paint);
+    canvas.drawPath(horizontal, paint);
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height / 2),
+      size.shortestSide * 0.14,
+      paint,
+    );
   }
 
   @override
