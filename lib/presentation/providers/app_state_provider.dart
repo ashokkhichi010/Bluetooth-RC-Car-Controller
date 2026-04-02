@@ -63,6 +63,8 @@ class AppController extends StateNotifier<AppState> {
   StreamSubscription<String>? _incomingDataSubscription;
   StreamSubscription<BluetoothDeviceInfo>? _discoverySubscription;
   String _serialBuffer = '';
+  bool _isRecoveringConnection = false;
+  bool _manualDisconnectInProgress = false;
 
   Future<void> _initialize() async {
     await _loadPreferences();
@@ -199,6 +201,7 @@ class AppController extends StateNotifier<AppState> {
   }
 
   Future<void> disconnect() async {
+    _manualDisconnectInProgress = true;
     await _repository.disconnect();
     state = state.copyWith(
       connectionStatus: ConnectionStatus.disconnected,
@@ -324,6 +327,17 @@ class AppController extends StateNotifier<AppState> {
 
   void _handleConnectionChange(bool connected) {
     if (connected) {
+      _manualDisconnectInProgress = false;
+      _isRecoveringConnection = false;
+      return;
+    }
+
+    if (_manualDisconnectInProgress) {
+      _manualDisconnectInProgress = false;
+      return;
+    }
+
+    if (_isRecoveringConnection) {
       return;
     }
 
@@ -335,7 +349,35 @@ class AppController extends StateNotifier<AppState> {
         clearConnectedDevice: true,
         errorMessage: 'Bluetooth disconnected unexpectedly.',
       );
+
+      unawaited(_recoverLastConnection());
     }
+  }
+
+  Future<void> _recoverLastConnection() async {
+    if (_isRecoveringConnection) {
+      return;
+    }
+
+    _isRecoveringConnection = true;
+    state = state.copyWith(
+      connectionStatus: ConnectionStatus.connecting,
+      infoMessage: 'Trying to reconnect...',
+      clearErrorMessage: true,
+    );
+
+    await Future<void>.delayed(AppConstants.reconnectDelay);
+    await refreshDevices(autoReconnect: true);
+
+    if (!state.isConnected) {
+      state = state.copyWith(
+        connectionStatus: ConnectionStatus.disconnected,
+        clearConnectedDevice: true,
+        infoMessage: 'Reconnect failed.',
+      );
+    }
+
+    _isRecoveringConnection = false;
   }
 
   Future<bool> _ensurePermissions() async {

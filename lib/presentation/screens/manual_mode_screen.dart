@@ -3,10 +3,6 @@ import 'package:bluetooth_rc_car/domain/models/car_state.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
 import 'package:bluetooth_rc_car/presentation/screens/screen_scaffold.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/control_button.dart';
-import 'package:bluetooth_rc_car/presentation/widgets/direction_indicator.dart';
-import 'package:bluetooth_rc_car/presentation/widgets/mode_dashboard_widgets.dart';
-import 'package:bluetooth_rc_car/presentation/widgets/movement_visualizer.dart';
-import 'package:bluetooth_rc_car/presentation/widgets/speed_indicator.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/status_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,76 +17,37 @@ class ManualModeScreen extends ConsumerWidget {
 
     return ScreenScaffold(
       title: 'Manual Drive',
-      subtitle:
-          'Take direct control of the RC car with live commands, saved speed tuning, and a refined directional pad.',
       children: [
-        ModeHeroCard(
-          title: 'Hands-on driving',
-          description: state.isConnected
-              ? 'Manual commands are live. Use the pad below to steer, stop instantly, or test diagonals.'
-              : 'Connect the HC-05 module first, then use this screen as the direct driving console.',
-          accentColor: const Color(0xFF79C7FF),
-          icon: Icons.gamepad_rounded,
-          carState: state.carState,
-        ),
-        const SizedBox(height: 18),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TelemetryStat(
-                label: 'Control Link',
-                value: state.isConnected ? 'Live' : 'Offline',
-                tint: state.isConnected
-                    ? const Color(0xFF7ED6C4)
-                    : const Color(0xFFFF8A80),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF121A24),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Current Speed',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TelemetryStat(
-                label: 'Direction',
-                value: state.carState.direction.label,
-                tint: const Color(0xFF79C7FF),
+              const Spacer(),
+              Text(
+                '${state.carState.speed}',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TelemetryStat(
-                label: 'Preset',
-                value: '${state.manualSpeed.round()}',
-                tint: const Color(0xFFF6BD60),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 18),
-        SpeedIndicator(speed: state.carState.speed),
-        const SizedBox(height: 18),
-        DirectionIndicator(direction: state.carState.direction),
-        const SizedBox(height: 18),
-        MovementVisualizer(
-          mode: CarMode.manual,
-          direction: state.carState.direction,
-        ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _SpeedTuningCard(
           speed: state.manualSpeed,
           onChanged: controller.updateManualSpeed,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         _ManualPad(
           enabled: state.isConnected,
           onCommand: controller.sendManualCommand,
-        ),
-        const SizedBox(height: 18),
-        const InsightsCard(
-          title: 'Manual Mode Notes',
-          points: [
-            'Diagonal buttons send G, I, H, and J for finer turning control.',
-            'Stop stays centered for quick emergency interruption while driving.',
-            'The manual speed slider updates the optimistic UI speed shown after each command.',
-          ],
         ),
       ],
     );
@@ -110,21 +67,11 @@ class _SpeedTuningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF79C7FF).withValues(alpha: 0.16),
-            const Color(0xFF121B24),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: const Color(0xFF79C7FF).withValues(alpha: 0.16),
-        ),
+        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xFF121A24),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -135,25 +82,10 @@ class _SpeedTuningCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                  child: Text('${speed.round()} / ${AppConstants.maxSpeed.toInt()}'),
-                ),
+                Text('${speed.round()} / ${AppConstants.maxSpeed.toInt()}'),
               ],
             ),
-            const SizedBox(height: 14),
-            Text(
-              'Tune the pace before sending commands so the car responds predictably during live manual control.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Slider(
               value: speed,
               min: 0,
@@ -186,32 +118,20 @@ class _ManualPad extends StatelessWidget {
       padding: const EdgeInsets.all(0),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: [
-              Colors.white.withValues(alpha: 0.03),
-              const Color(0xFF79C7FF).withValues(alpha: 0.06),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          borderRadius: BorderRadius.circular(18),
+          color: const Color(0xFF121A24),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Control Pad',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                enabled
-                    ? 'Tap any direction to send live commands instantly.'
-                    : 'Connect to the HC-05 module to unlock the drive controls.',
-              ),
-              const SizedBox(height: 18),
+              if (!enabled) ...[
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Connect the car to enable controls.'),
+                ),
+                const SizedBox(height: 12),
+              ],
               GridView.count(
                 crossAxisCount: 3,
                 shrinkWrap: true,
@@ -221,7 +141,7 @@ class _ManualPad extends StatelessWidget {
                 children: [
                   ControlButton(
                     icon: Icons.north_west_rounded,
-                    label: 'Front Left',
+                    label: 'FL',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandForwardLeft,
@@ -235,7 +155,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.north_rounded,
-                    label: 'Forward',
+                    label: 'F',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandForward,
@@ -245,7 +165,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.north_east_rounded,
-                    label: 'Front Right',
+                    label: 'FR',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandForwardRight,
@@ -259,7 +179,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.west_rounded,
-                    label: 'Left',
+                    label: 'L',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandLeft,
@@ -270,7 +190,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.stop_rounded,
-                    label: 'Stop',
+                    label: 'S',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandStop,
@@ -280,7 +200,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.east_rounded,
-                    label: 'Right',
+                    label: 'R',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandRight,
@@ -291,7 +211,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.south_west_rounded,
-                    label: 'Back Left',
+                    label: 'BL',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandBackwardLeft,
@@ -305,7 +225,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.south_rounded,
-                    label: 'Backward',
+                    label: 'B',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandBackward,
@@ -315,7 +235,7 @@ class _ManualPad extends StatelessWidget {
                   ),
                   ControlButton(
                     icon: Icons.south_east_rounded,
-                    label: 'Back Right',
+                    label: 'BR',
                     onPressed: enabled
                         ? () => onCommand(
                               AppConstants.commandBackwardRight,

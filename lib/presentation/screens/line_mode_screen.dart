@@ -2,7 +2,6 @@ import 'package:bluetooth_rc_car/domain/models/car_state.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
 import 'package:bluetooth_rc_car/presentation/screens/screen_scaffold.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/direction_indicator.dart';
-import 'package:bluetooth_rc_car/presentation/widgets/mode_dashboard_widgets.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/movement_visualizer.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/speed_indicator.dart';
 import 'package:flutter/material.dart';
@@ -18,70 +17,98 @@ class LineModeScreen extends ConsumerWidget {
 
     return ScreenScaffold(
       title: 'Line Follower',
-      subtitle:
-          'Monitor line-tracking behavior, motion confidence, and live steering changes from the Arduino controller.',
       children: [
-        ModeHeroCard(
-          title: 'Autonomous line tracking',
-          description: appState.isConnected
-              ? 'Telemetry is streaming from the HC-05 link. Keep the robot centered on the line and watch heading corrections live.'
-              : 'Connect to your HC-05 module, then open this screen to push the car into line-follow mode automatically.',
-          accentColor: const Color(0xFF7ED6C4),
-          icon: Icons.route_rounded,
-          carState: carState,
-        ),
-        const SizedBox(height: 18),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TelemetryStat(
-                label: 'Mode',
-                value: carState.mode == CarMode.lineFollower
-                    ? 'LINE'
-                    : carState.mode.label.toUpperCase(),
-                tint: const Color(0xFF7ED6C4),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TelemetryStat(
-                label: 'Motion',
-                value: carState.isMoving ? 'Active' : 'Idle',
-                tint: const Color(0xFF79C7FF),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TelemetryStat(
-                label: 'Heading',
-                value: carState.direction.label,
-                tint: const Color(0xFFF6BD60),
-              ),
-            ),
+        SimpleStatsRow(
+          values: [
+            SimpleStatData('Mode', 'Line'),
+            SimpleStatData('Speed', '${carState.speed}'),
+            SimpleStatData('Direction', carState.direction.label),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         SpeedIndicator(speed: carState.speed),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         DirectionIndicator(direction: carState.direction),
-        const SizedBox(height: 18),
-        MovementVisualizer(
-          mode: carState.mode,
-          direction: carState.direction,
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 220,
+          child: MovementVisualizer(
+            mode: carState.mode,
+            direction: carState.direction,
+          ),
         ),
-        const SizedBox(height: 18),
-        InsightsCard(
-          title: 'Line Follower Notes',
-          points: [
-            appState.isConnected
-                ? 'The screen auto-requests line-follow mode when opened from the drawer.'
-                : 'A Bluetooth connection is required before the robot can enter line-follow mode.',
-            'Speed and direction update directly from parsed serial telemetry packets.',
-            'Use this view to confirm that line corrections remain smooth instead of jittery.',
-          ],
-        ),
+        if (!appState.isConnected) ...[
+          const SizedBox(height: 12),
+          const InfoStrip(label: 'Connect the car to start line mode.'),
+        ],
       ],
+    );
+  }
+}
+
+class SimpleStatsRow extends StatelessWidget {
+  const SimpleStatsRow({required this.values, super.key});
+
+  final List<SimpleStatData> values;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < values.length; i++) ...[
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121A24),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    values[i].label,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    values[i].value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (i != values.length - 1) const SizedBox(width: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class SimpleStatData {
+  const SimpleStatData(this.label, this.value);
+
+  final String label;
+  final String value;
+}
+
+class InfoStrip extends StatelessWidget {
+  const InfoStrip({required this.label, super.key});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(label),
     );
   }
 }

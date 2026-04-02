@@ -1,8 +1,9 @@
 import 'package:bluetooth_rc_car/domain/models/car_state.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
+import 'package:bluetooth_rc_car/presentation/screens/line_mode_screen.dart'
+    show InfoStrip, SimpleStatData, SimpleStatsRow;
 import 'package:bluetooth_rc_car/presentation/screens/screen_scaffold.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/direction_indicator.dart';
-import 'package:bluetooth_rc_car/presentation/widgets/mode_dashboard_widgets.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/movement_visualizer.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/obstacle_indicator.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/speed_indicator.dart';
@@ -19,67 +20,32 @@ class ObstacleModeScreen extends ConsumerWidget {
 
     return ScreenScaffold(
       title: 'Obstacle Avoidance',
-      subtitle:
-          'Watch obstacle telemetry, rerouting behavior, and sensor-driven motion changes in real time.',
       children: [
-        ModeHeroCard(
-          title: 'Reactive obstacle handling',
-          description: appState.isConnected
-              ? 'The robot is ready to scan, warn, and reroute around nearby obstacles through the HC-05 link.'
-              : 'Connect the car first, then open this screen to auto-request obstacle-avoidance mode.',
-          accentColor: const Color(0xFFFF8A80),
-          icon: Icons.sensors_rounded,
-          carState: carState,
-        ),
-        const SizedBox(height: 18),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TelemetryStat(
-                label: 'Alert',
-                value: carState.obstacleSide.label,
-                tint: const Color(0xFFFF8A80),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TelemetryStat(
-                label: 'Direction',
-                value: carState.direction.label,
-                tint: const Color(0xFF79C7FF),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TelemetryStat(
-                label: 'Speed',
-                value: '${carState.speed}',
-                tint: const Color(0xFFF6BD60),
-              ),
-            ),
+        SimpleStatsRow(
+          values: [
+            SimpleStatData('Alert', carState.obstacleSide.label),
+            SimpleStatData('Speed', '${carState.speed}'),
+            SimpleStatData('Direction', carState.direction.label),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         ObstacleIndicator(obstacleSide: carState.obstacleSide),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         SpeedIndicator(speed: carState.speed),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         DirectionIndicator(direction: carState.direction),
-        const SizedBox(height: 18),
-        MovementVisualizer(
-          mode: carState.mode,
-          direction: carState.direction,
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 220,
+          child: MovementVisualizer(
+            mode: carState.mode,
+            direction: carState.direction,
+          ),
         ),
-        const SizedBox(height: 18),
-        const InsightsCard(
-          title: 'Obstacle Mode Notes',
-          points: [
-            'Left, right, and both-side warnings are rendered directly from OBS telemetry.',
-            'Use this view to confirm that rerouting decisions match live sensor detections.',
-            'Unexpected rapid warning flips usually indicate noisy sensor data or unstable spacing.',
-          ],
-        ),
+        if (!appState.isConnected) ...[
+          const SizedBox(height: 12),
+          const InfoStrip(label: 'Connect the car to start obstacle mode.'),
+        ],
       ],
     );
   }
