@@ -120,6 +120,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       await controller.activateMode(CarMode.lineFollower);
     } else if (index == 2) {
       await controller.activateMode(CarMode.obstacleAvoidance);
+    } else if (index == 3) {
+      await controller.activateMode(CarMode.manual);
     }
   }
 }

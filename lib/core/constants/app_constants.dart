@@ -8,18 +8,19 @@ class AppConstants {
   static const Duration scanTimeout = Duration(seconds: 12);
   static const Duration reconnectDelay = Duration(milliseconds: 600);
 
-  static const String lineModeCommand = 'M:LINE;';
-  static const String obstacleModeCommand = 'M:OBS;';
+  static const String lineModeCommand = 'N';
+  static const String obstacleModeCommand = 'O';
+  static const String menualModeCommand = 'MS';
 
-  static const String commandForward = 'F';
-  static const String commandBackward = 'B';
-  static const String commandLeft = 'L';
-  static const String commandRight = 'R';
-  static const String commandStop = 'S';
-  static const String commandForwardLeft = 'G';
-  static const String commandForwardRight = 'I';
-  static const String commandBackwardLeft = 'H';
-  static const String commandBackwardRight = 'J';
+  static const String commandForward = 'FS';
+  static const String commandBackward = 'BS';
+  static const String commandLeft = 'LS';
+  static const String commandRight = 'RS';
+  static const String commandStop = 'SS';
+  static const String commandForwardLeft = 'GS';
+  static const String commandForwardRight = 'IS';
+  static const String commandBackwardLeft = 'HS';
+  static const String commandBackwardRight = 'JS';
 
   static const String prefLastDeviceAddress = 'last_device_address';
   static const String prefLastDeviceName = 'last_device_name';

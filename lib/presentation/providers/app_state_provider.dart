@@ -214,7 +214,7 @@ class AppController extends StateNotifier<AppState> {
     final command = switch (mode) {
       CarMode.lineFollower => AppConstants.lineModeCommand,
       CarMode.obstacleAvoidance => AppConstants.obstacleModeCommand,
-      CarMode.manual => AppConstants.commandStop,
+      CarMode.manual => AppConstants.menualModeCommand,
       CarMode.idle => AppConstants.commandStop,
     };
 
