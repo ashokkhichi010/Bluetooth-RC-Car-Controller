@@ -62,6 +62,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                         _activateMode(controller, CarMode.obstacleAvoidance),
                     onFollowMe: () =>
                         _activateMode(controller, CarMode.followMe),
+                    onSpeedChanged: controller.updateManualSpeed,
+                    onSpeedChangeEnd: controller.sendSpeedValue,
                     onSwitchToManual: () => _switchToManual(controller),
                     onDisconnect: controller.disconnect,
                     onDirectionChanged: _handleGestureDirection,
@@ -238,6 +240,8 @@ class _ConnectedHome extends StatelessWidget {
     required this.onFollowLine,
     required this.onAutoMode,
     required this.onFollowMe,
+    required this.onSpeedChanged,
+    required this.onSpeedChangeEnd,
     required this.onSwitchToManual,
     required this.onDisconnect,
     required this.onDirectionChanged,
@@ -250,6 +254,8 @@ class _ConnectedHome extends StatelessWidget {
   final Future<void> Function() onFollowLine;
   final Future<void> Function() onAutoMode;
   final Future<void> Function() onFollowMe;
+  final ValueChanged<double> onSpeedChanged;
+  final Future<void> Function(double value) onSpeedChangeEnd;
   final Future<void> Function() onSwitchToManual;
   final Future<void> Function() onDisconnect;
   final Future<void> Function(MovementDirection direction) onDirectionChanged;
@@ -274,6 +280,14 @@ class _ConnectedHome extends StatelessWidget {
             onPressed: onDisconnect,
             icon: const Icon(Icons.link_off_rounded),
           ),
+        ),
+        const SizedBox(height: 12),
+        _SpeedCard(
+          speed: state.manualSpeed,
+          onChanged: onSpeedChanged,
+          onChangeEnd: (value) {
+            onSpeedChangeEnd(value);
+          },
         ),
         const SizedBox(height: 12),
         Row(
@@ -338,6 +352,56 @@ class _ConnectedHome extends StatelessWidget {
       CarMode.manual => 'Manual Control',
       CarMode.idle => 'Connected',
     };
+  }
+}
+
+class _SpeedCard extends StatelessWidget {
+  const _SpeedCard({
+    required this.speed,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  final double speed;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121A24),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Speed',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const Spacer(),
+              Text(
+                '${speed.round()}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+          Slider(
+            value: speed.clamp(0, AppConstants.maxSpeed),
+            min: 0,
+            max: AppConstants.maxSpeed,
+            divisions: AppConstants.maxSpeed.toInt(),
+            label: '${speed.round()}',
+            onChanged: onChanged,
+            onChangeEnd: onChangeEnd,
+          ),
+        ],
+      ),
+    );
   }
 }
 

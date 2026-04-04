@@ -291,6 +291,33 @@ class AppController extends StateNotifier<AppState> {
     );
   }
 
+  Future<void> sendSpeedValue(double speed) async {
+    final roundedSpeed = speed.round().clamp(0, AppConstants.maxSpeed.toInt());
+
+    await updateManualSpeed(roundedSpeed.toDouble());
+
+    if (!state.isConnected) {
+      state = state.copyWith(
+        errorMessage: 'Please connect to your RC car before sending speed.',
+      );
+      return;
+    }
+
+    try {
+      await _repository.sendCommand(roundedSpeed.toString());
+      state = state.copyWith(
+        carState: state.carState.copyWith(
+          speed: roundedSpeed,
+          lastUpdatedAt: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      state = state.copyWith(
+        errorMessage: 'The speed command could not be delivered.',
+      );
+    }
+  }
+
   Future<void> forgetSavedDevice() async {
     await _repository.clearLastDevice();
     state = state.copyWith(
