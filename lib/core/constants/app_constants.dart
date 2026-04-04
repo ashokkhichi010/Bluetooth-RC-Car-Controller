@@ -10,6 +10,7 @@ class AppConstants {
 
   static const String lineModeCommand = 'N';
   static const String obstacleModeCommand = 'O';
+  static const String followMeModeCommand = 'W';
   static const String menualModeCommand = 'MS';
 
   static const String commandForward = 'F';

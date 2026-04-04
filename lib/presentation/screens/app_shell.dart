@@ -60,6 +60,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                         _activateMode(controller, CarMode.lineFollower),
                     onAutoMode: () =>
                         _activateMode(controller, CarMode.obstacleAvoidance),
+                    onFollowMe: () =>
+                        _activateMode(controller, CarMode.followMe),
                     onSwitchToManual: () => _switchToManual(controller),
                     onDisconnect: controller.disconnect,
                     onDirectionChanged: _handleGestureDirection,
@@ -235,6 +237,7 @@ class _ConnectedHome extends StatelessWidget {
     required this.previewDirection,
     required this.onFollowLine,
     required this.onAutoMode,
+    required this.onFollowMe,
     required this.onSwitchToManual,
     required this.onDisconnect,
     required this.onDirectionChanged,
@@ -246,6 +249,7 @@ class _ConnectedHome extends StatelessWidget {
   final MovementDirection? previewDirection;
   final Future<void> Function() onFollowLine;
   final Future<void> Function() onAutoMode;
+  final Future<void> Function() onFollowMe;
   final Future<void> Function() onSwitchToManual;
   final Future<void> Function() onDisconnect;
   final Future<void> Function(MovementDirection direction) onDirectionChanged;
@@ -291,6 +295,15 @@ class _ConnectedHome extends StatelessWidget {
                 onTap: onAutoMode,
               ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ModeCard(
+                label: 'Follow Me',
+                icon: Icons.person_pin_circle_rounded,
+                selected: activeMode == CarMode.followMe,
+                onTap: onFollowMe,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -321,6 +334,7 @@ class _ConnectedHome extends StatelessWidget {
     return switch (mode) {
       CarMode.lineFollower => 'Follow Line',
       CarMode.obstacleAvoidance => 'Auto Mode',
+      CarMode.followMe => 'Follow Me',
       CarMode.manual => 'Manual Control',
       CarMode.idle => 'Connected',
     };
@@ -415,7 +429,12 @@ class _ModeCard extends StatelessWidget {
           children: [
             Icon(icon),
             const SizedBox(height: 10),
-            Text(label, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ],
         ),
       ),

@@ -1,4 +1,4 @@
-enum CarMode { idle, manual, lineFollower, obstacleAvoidance }
+enum CarMode { idle, manual, lineFollower, obstacleAvoidance, followMe }
 
 enum MovementDirection {
   stop,
@@ -64,6 +64,7 @@ extension CarModeX on CarMode {
         CarMode.manual => 'Manual',
         CarMode.lineFollower => 'Line Follower',
         CarMode.obstacleAvoidance => 'Obstacle Avoidance',
+        CarMode.followMe => 'Follow Me',
       };
 
   static CarMode? fromWire(String? value) {
@@ -72,6 +73,11 @@ extension CarModeX on CarMode {
         return CarMode.lineFollower;
       case 'OBS':
         return CarMode.obstacleAvoidance;
+      case 'FOLLOW_ME':
+      case 'FOLLOWME':
+      case 'FOLLOW':
+      case 'FM':
+        return CarMode.followMe;
       case 'MANUAL':
         return CarMode.manual;
       case 'IDLE':

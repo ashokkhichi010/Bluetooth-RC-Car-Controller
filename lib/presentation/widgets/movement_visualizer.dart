@@ -192,6 +192,7 @@ class _MovementVisualizerState extends State<MovementVisualizer> {
     return switch (mode) {
       CarMode.lineFollower => 'Follow Line',
       CarMode.obstacleAvoidance => 'Auto Mode',
+      CarMode.followMe => 'Follow Me',
       CarMode.manual => 'Manual Control',
       CarMode.idle => 'Movement',
     };
