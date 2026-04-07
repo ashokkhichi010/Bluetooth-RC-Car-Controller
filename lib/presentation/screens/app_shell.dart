@@ -3,6 +3,7 @@ import 'package:bluetooth_rc_car/domain/models/app_state.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
 import 'package:bluetooth_rc_car/domain/models/car_state.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
+import 'package:bluetooth_rc_car/presentation/screens/command_settings_screen.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/movement_visualizer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,6 +74,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                     state: state,
                     onRefresh: controller.refreshDevices,
                     onScan: controller.scanDevices,
+                    onOpenSettings: _openCommandSettings,
                     onConnect: (device) =>
                         controller.connect(device, showStatusMessage: true),
                   ),
@@ -108,38 +110,41 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
 
     final controller = ref.read(appControllerProvider.notifier);
+    final command = ref
+        .read(appControllerProvider)
+        .commandSettings
+        .commandForDirection(direction);
     setState(() {
       _gestureDirection = direction;
       _activeMode = CarMode.manual;
     });
 
     await controller.sendManualCommand(
-      _commandForDirection(direction),
+      command,
       direction: direction,
     );
   }
 
   Future<void> _endManualInteraction() async {
     final controller = ref.read(appControllerProvider.notifier);
+    final stopCommand = ref
+        .read(appControllerProvider)
+        .commandSettings
+        .commandForDirection(MovementDirection.stop);
     setState(() => _gestureDirection = null);
     await controller.sendManualCommand(
-      AppConstants.commandStop,
+      stopCommand,
       direction: MovementDirection.stop,
     );
   }
 
-  String _commandForDirection(MovementDirection direction) {
-    return switch (direction) {
-      MovementDirection.forward => AppConstants.commandForward,
-      MovementDirection.backward => AppConstants.commandBackward,
-      MovementDirection.left => AppConstants.commandLeft,
-      MovementDirection.right => AppConstants.commandRight,
-      MovementDirection.forwardLeft => AppConstants.commandForwardLeft,
-      MovementDirection.forwardRight => AppConstants.commandForwardRight,
-      MovementDirection.backwardLeft => AppConstants.commandBackwardLeft,
-      MovementDirection.backwardRight => AppConstants.commandBackwardRight,
-      MovementDirection.stop => AppConstants.commandStop,
-    };
+  Future<void> _openCommandSettings() async {
+    final settings = ref.read(appControllerProvider).commandSettings;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CommandSettingsScreen(initialSettings: settings),
+      ),
+    );
   }
 }
 
@@ -148,12 +153,14 @@ class _ConnectHome extends StatelessWidget {
     required this.state,
     required this.onRefresh,
     required this.onScan,
+    required this.onOpenSettings,
     required this.onConnect,
   });
 
   final AppState state;
   final VoidCallback onRefresh;
   final VoidCallback onScan;
+  final Future<void> Function() onOpenSettings;
   final Future<void> Function(BluetoothDeviceInfo device) onConnect;
 
   @override
@@ -180,6 +187,11 @@ class _ConnectHome extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              IconButton.filledTonal(
+                onPressed: onOpenSettings,
+                icon: const Icon(Icons.settings_rounded),
+              ),
+              const SizedBox(width: 8),
               IconButton.filled(
                 onPressed: onScan,
                 icon: state.isScanning

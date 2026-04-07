@@ -7,6 +7,7 @@ import 'package:bluetooth_rc_car/data/services/bluetooth_service.dart';
 import 'package:bluetooth_rc_car/domain/models/app_state.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
 import 'package:bluetooth_rc_car/domain/models/car_state.dart';
+import 'package:bluetooth_rc_car/domain/models/command_settings.dart';
 import 'package:bluetooth_rc_car/domain/repositories/bluetooth_repository.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,6 +76,7 @@ class AppController extends StateNotifier<AppState> {
   Future<void> _loadPreferences() async {
     final lastDevice = await _repository.getLastDevice();
     final savedSpeed = await _repository.getManualSpeed();
+    final commandSettings = await _repository.getCommandSettings();
     final normalizedSpeed = _normalizeManualSpeed(
       savedSpeed ?? AppConstants.defaultManualSpeed,
     );
@@ -86,6 +88,7 @@ class AppController extends StateNotifier<AppState> {
     state = state.copyWith(
       lastSavedDevice: lastDevice,
       manualSpeed: normalizedSpeed,
+      commandSettings: commandSettings,
     );
   }
 
@@ -233,13 +236,7 @@ class AppController extends StateNotifier<AppState> {
   }
 
   Future<void> activateMode(CarMode mode) async {
-    final command = switch (mode) {
-      CarMode.lineFollower => AppConstants.lineModeCommand,
-      CarMode.obstacleAvoidance => AppConstants.obstacleModeCommand,
-      CarMode.followMe => AppConstants.followMeModeCommand,
-      CarMode.manual => AppConstants.menualModeCommand,
-      CarMode.idle => AppConstants.commandStop,
-    };
+    final command = state.commandSettings.commandForMode(mode);
 
     if (!state.isConnected) {
       state = state.copyWith(
@@ -338,6 +335,12 @@ class AppController extends StateNotifier<AppState> {
         errorMessage: 'The speed command could not be delivered.',
       );
     }
+  }
+
+  Future<void> saveCommandSettings(CommandSettings settings) async {
+    final normalizedSettings = settings.normalized();
+    await _repository.saveCommandSettings(normalizedSettings);
+    state = state.copyWith(commandSettings: normalizedSettings);
   }
 
   Future<void> forgetSavedDevice() async {

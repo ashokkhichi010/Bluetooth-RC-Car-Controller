@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bluetooth_rc_car/core/constants/app_constants.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
 import 'package:bluetooth_rc_car/domain/models/car_state.dart';
+import 'package:bluetooth_rc_car/domain/models/command_settings.dart';
 import 'package:bluetooth_rc_car/domain/repositories/bluetooth_repository.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,6 +59,22 @@ void main() {
 
       controller.dispose();
     });
+
+    test('uses saved custom commands when changing modes', () async {
+      final repository = FakeBluetoothRepository()
+        ..connected = true
+        ..commandSettings = CommandSettings.defaults().copyWith(
+          lineFollowerMode: 'Z',
+        );
+      final controller = AppController(repository, autoInitialize: false);
+
+      await controller.saveCommandSettings(repository.commandSettings);
+      await controller.activateMode(CarMode.lineFollower);
+
+      expect(repository.sentCommands, contains('Z'));
+
+      controller.dispose();
+    });
   });
 }
 
@@ -70,6 +87,7 @@ class FakeBluetoothRepository implements BluetoothRepository {
   final List<String> sentCommands = <String>[];
   bool connected = false;
   double? savedManualSpeed;
+  CommandSettings commandSettings = CommandSettings.defaults();
 
   @override
   Stream<String> get incomingData => _incomingController.stream;
@@ -112,6 +130,9 @@ class FakeBluetoothRepository implements BluetoothRepository {
   Future<double?> getManualSpeed() async => AppConstants.defaultManualSpeed;
 
   @override
+  Future<CommandSettings> getCommandSettings() async => commandSettings;
+
+  @override
   Future<List<BluetoothDeviceInfo>> getBondedDevices() async => const [];
 
   @override
@@ -120,6 +141,11 @@ class FakeBluetoothRepository implements BluetoothRepository {
   @override
   Future<void> saveManualSpeed(double speed) async {
     savedManualSpeed = speed;
+  }
+
+  @override
+  Future<void> saveCommandSettings(CommandSettings settings) async {
+    commandSettings = settings;
   }
 
   @override

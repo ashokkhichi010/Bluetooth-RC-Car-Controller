@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:bluetooth_rc_car/core/constants/app_constants.dart';
 import 'package:bluetooth_rc_car/data/services/bluetooth_service.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
+import 'package:bluetooth_rc_car/domain/models/command_settings.dart';
 import 'package:bluetooth_rc_car/domain/repositories/bluetooth_repository.dart';
 import 'package:flutter_bluetooth_classic_serial/flutter_bluetooth_classic.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -97,6 +99,33 @@ class BluetoothRepositoryImpl implements BluetoothRepository {
   @override
   Future<double?> getManualSpeed() async {
     return _preferences.getDouble(AppConstants.prefManualSpeed);
+  }
+
+  @override
+  Future<void> saveCommandSettings(CommandSettings settings) {
+    return _preferences.setString(
+      AppConstants.prefCommandSettings,
+      jsonEncode(settings.toJson()),
+    );
+  }
+
+  @override
+  Future<CommandSettings> getCommandSettings() async {
+    final rawValue = _preferences.getString(AppConstants.prefCommandSettings);
+    if (rawValue == null || rawValue.isEmpty) {
+      return CommandSettings.defaults();
+    }
+
+    try {
+      final decoded = jsonDecode(rawValue);
+      if (decoded is Map) {
+        return CommandSettings.fromJson(Map<String, dynamic>.from(decoded));
+      }
+    } catch (_) {
+      return CommandSettings.defaults();
+    }
+
+    return CommandSettings.defaults();
   }
 
   BluetoothDeviceInfo _mapDevice(BluetoothDevice device, {int? rssi}) {

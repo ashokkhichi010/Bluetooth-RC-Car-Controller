@@ -1,6 +1,7 @@
 import 'package:bluetooth_rc_car/core/constants/app_constants.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
 import 'package:bluetooth_rc_car/domain/models/car_state.dart';
+import 'package:bluetooth_rc_car/domain/models/command_settings.dart';
 
 class AppState {
   const AppState({
@@ -11,6 +12,7 @@ class AppState {
     required this.isScanning,
     required this.bluetoothEnabled,
     required this.manualSpeed,
+    required this.commandSettings,
     this.connectedDevice,
     this.lastSavedDevice,
     this.errorMessage,
@@ -25,6 +27,7 @@ class AppState {
         isScanning: false,
         bluetoothEnabled: false,
         manualSpeed: AppConstants.defaultManualSpeed,
+        commandSettings: CommandSettings.defaults(),
       );
 
   final ConnectionStatus connectionStatus;
@@ -34,6 +37,7 @@ class AppState {
   final bool isScanning;
   final bool bluetoothEnabled;
   final double manualSpeed;
+  final CommandSettings commandSettings;
   final BluetoothDeviceInfo? connectedDevice;
   final BluetoothDeviceInfo? lastSavedDevice;
   final String? errorMessage;
@@ -49,6 +53,7 @@ class AppState {
     bool? isScanning,
     bool? bluetoothEnabled,
     double? manualSpeed,
+    CommandSettings? commandSettings,
     BluetoothDeviceInfo? connectedDevice,
     bool clearConnectedDevice = false,
     BluetoothDeviceInfo? lastSavedDevice,
@@ -66,6 +71,7 @@ class AppState {
       isScanning: isScanning ?? this.isScanning,
       bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
       manualSpeed: manualSpeed ?? this.manualSpeed,
+      commandSettings: commandSettings ?? this.commandSettings,
       connectedDevice: clearConnectedDevice
           ? null
           : (connectedDevice ?? this.connectedDevice),

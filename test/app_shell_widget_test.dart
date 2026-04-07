@@ -1,5 +1,6 @@
 import 'package:bluetooth_rc_car/core/constants/app_constants.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
+import 'package:bluetooth_rc_car/domain/models/command_settings.dart';
 import 'package:bluetooth_rc_car/domain/repositories/bluetooth_repository.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
 import 'package:bluetooth_rc_car/presentation/screens/app_shell.dart';
@@ -8,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('drawer navigation activates line follower mode command', (
+  testWidgets('follow line mode card sends the line follower command', (
     tester,
   ) async {
     final repository = _RecordingBluetoothRepository()..connected = true;
@@ -34,9 +35,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Open navigation menu'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Line Follower Mode'));
+    await tester.tap(find.text('Follow Line'));
     await tester.pumpAndSettle();
 
     expect(repository.sentCommands, contains(AppConstants.lineModeCommand));
@@ -78,6 +77,9 @@ class _RecordingBluetoothRepository implements BluetoothRepository {
   Future<double?> getManualSpeed() async => AppConstants.defaultManualSpeed;
 
   @override
+  Future<CommandSettings> getCommandSettings() async => CommandSettings.defaults();
+
+  @override
   Future<List<BluetoothDeviceInfo>> getBondedDevices() async => const [];
 
   @override
@@ -85,6 +87,9 @@ class _RecordingBluetoothRepository implements BluetoothRepository {
 
   @override
   Future<void> saveManualSpeed(double speed) async {}
+
+  @override
+  Future<void> saveCommandSettings(CommandSettings settings) async {}
 
   @override
   Future<void> sendCommand(String command) async {

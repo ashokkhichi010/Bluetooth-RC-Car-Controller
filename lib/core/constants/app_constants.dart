@@ -27,6 +27,7 @@ class AppConstants {
   static const String prefLastDeviceAddress = 'last_device_address';
   static const String prefLastDeviceName = 'last_device_name';
   static const String prefManualSpeed = 'manual_speed';
+  static const String prefCommandSettings = 'command_settings';
 
   static const String telemetryModeKey = 'MODE';
   static const String telemetrySpeedKey = 'SPD';

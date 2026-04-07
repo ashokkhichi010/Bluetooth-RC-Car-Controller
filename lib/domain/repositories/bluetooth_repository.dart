@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:bluetooth_rc_car/domain/models/command_settings.dart';
 import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
 
 abstract class BluetoothRepository {
@@ -17,5 +18,7 @@ abstract class BluetoothRepository {
   Future<void> clearLastDevice();
   Future<void> saveManualSpeed(double speed);
   Future<double?> getManualSpeed();
+  Future<void> saveCommandSettings(CommandSettings settings);
+  Future<CommandSettings> getCommandSettings();
   bool get isConnected;
 }
