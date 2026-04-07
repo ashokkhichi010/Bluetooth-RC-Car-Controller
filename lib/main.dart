@@ -1,6 +1,7 @@
 import 'package:bluetooth_rc_car/core/constants/app_constants.dart';
 import 'package:bluetooth_rc_car/core/theme/app_theme.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
+import 'package:bluetooth_rc_car/presentation/screens/app_splash_screen.dart';
 import 'package:bluetooth_rc_car/presentation/screens/app_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,7 +33,7 @@ class RcCarApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: AppConstants.appTitle,
       theme: AppTheme.darkTheme,
-      home: const AppShell(),
+      home: const AppSplashScreen(child: AppShell()),
     );
   }
 }
