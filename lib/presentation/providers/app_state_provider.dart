@@ -32,8 +32,9 @@ final bluetoothRepositoryProvider = Provider<BluetoothRepository>((ref) {
 
 final appBootstrapProvider = Provider<bool>((ref) => true);
 
-final appControllerProvider =
-    StateNotifierProvider<AppController, AppState>((ref) {
+final appControllerProvider = StateNotifierProvider<AppController, AppState>((
+  ref,
+) {
   final controller = AppController(
     ref.watch(bluetoothRepositoryProvider),
     autoInitialize: ref.watch(appBootstrapProvider),
@@ -43,14 +44,14 @@ final appControllerProvider =
 });
 
 class AppController extends StateNotifier<AppState> {
-  AppController(
-    this._repository, {
-    this.autoInitialize = true,
-  }) : super(AppState.initial()) {
+  AppController(this._repository, {this.autoInitialize = true})
+    : super(AppState.initial()) {
     _connectionStateSubscription = _repository.connectionState.listen(
       _handleConnectionChange,
     );
-    _incomingDataSubscription = _repository.incomingData.listen(_handleIncomingData);
+    _incomingDataSubscription = _repository.incomingData.listen(
+      _handleIncomingData,
+    );
     if (autoInitialize) {
       unawaited(_initialize());
     }
@@ -74,10 +75,17 @@ class AppController extends StateNotifier<AppState> {
   Future<void> _loadPreferences() async {
     final lastDevice = await _repository.getLastDevice();
     final savedSpeed = await _repository.getManualSpeed();
+    final normalizedSpeed = _normalizeManualSpeed(
+      savedSpeed ?? AppConstants.defaultManualSpeed,
+    );
+
+    if (savedSpeed != null && savedSpeed != normalizedSpeed) {
+      await _repository.saveManualSpeed(normalizedSpeed);
+    }
 
     state = state.copyWith(
       lastSavedDevice: lastDevice,
-      manualSpeed: savedSpeed ?? AppConstants.defaultManualSpeed,
+      manualSpeed: normalizedSpeed,
     );
   }
 
@@ -113,7 +121,9 @@ class AppController extends StateNotifier<AppState> {
 
     if (autoReconnect && state.lastSavedDevice != null && !state.isConnected) {
       final savedAddress = state.lastSavedDevice!.address;
-      final candidate = bonded.where((device) => device.address == savedAddress).firstOrNull;
+      final candidate = bonded
+          .where((device) => device.address == savedAddress)
+          .firstOrNull;
       if (candidate != null) {
         await connect(candidate, showStatusMessage: false);
       }
@@ -138,12 +148,18 @@ class AppController extends StateNotifier<AppState> {
     _discoverySubscription = _repository.discoverDevices().listen(
       (device) {
         final updated = [...state.discoveredDevices];
-        final index = updated.indexWhere((item) => item.address == device.address);
+        final index = updated.indexWhere(
+          (item) => item.address == device.address,
+        );
         if (index >= 0) {
-          updated[index] = device.copyWith(isConnected: device.address == state.connectedDevice?.address);
+          updated[index] = device.copyWith(
+            isConnected: device.address == state.connectedDevice?.address,
+          );
         } else {
           updated.add(
-            device.copyWith(isConnected: device.address == state.connectedDevice?.address),
+            device.copyWith(
+              isConnected: device.address == state.connectedDevice?.address,
+            ),
           );
         }
 
@@ -188,7 +204,10 @@ class AppController extends StateNotifier<AppState> {
         connectedDevice: device.copyWith(isConnected: true),
         lastSavedDevice: device,
         pairedDevices: _markConnected(state.pairedDevices, device.address),
-        discoveredDevices: _markConnected(state.discoveredDevices, device.address),
+        discoveredDevices: _markConnected(
+          state.discoveredDevices,
+          device.address,
+        ),
         infoMessage: showStatusMessage ? 'Connected to ${device.name}.' : null,
       );
     } catch (_) {
@@ -241,7 +260,8 @@ class AppController extends StateNotifier<AppState> {
       }
     } catch (_) {
       state = state.copyWith(
-        errorMessage: 'Command failed because the Bluetooth link is unavailable.',
+        errorMessage:
+            'Command failed because the Bluetooth link is unavailable.',
       );
     }
   }
@@ -279,12 +299,13 @@ class AppController extends StateNotifier<AppState> {
   }
 
   Future<void> updateManualSpeed(double speed) async {
-    await _repository.saveManualSpeed(speed);
+    final normalizedSpeed = _normalizeManualSpeed(speed);
+    await _repository.saveManualSpeed(normalizedSpeed);
     state = state.copyWith(
-      manualSpeed: speed,
+      manualSpeed: normalizedSpeed,
       carState: state.carState.mode == CarMode.manual && state.carState.isMoving
           ? state.carState.copyWith(
-              speed: speed.round(),
+              speed: normalizedSpeed.round(),
               lastUpdatedAt: DateTime.now(),
             )
           : state.carState,
@@ -292,9 +313,10 @@ class AppController extends StateNotifier<AppState> {
   }
 
   Future<void> sendSpeedValue(double speed) async {
-    final roundedSpeed = speed.round().clamp(0, AppConstants.maxSpeed.toInt());
+    final normalizedSpeed = _normalizeManualSpeed(speed);
+    final speedCommand = _manualSpeedCommand(normalizedSpeed);
 
-    await updateManualSpeed(roundedSpeed.toDouble());
+    await updateManualSpeed(normalizedSpeed);
 
     if (!state.isConnected) {
       state = state.copyWith(
@@ -304,10 +326,10 @@ class AppController extends StateNotifier<AppState> {
     }
 
     try {
-      await _repository.sendCommand(roundedSpeed.toString());
+      await _repository.sendCommand(speedCommand);
       state = state.copyWith(
         carState: state.carState.copyWith(
-          speed: roundedSpeed,
+          speed: normalizedSpeed.round(),
           lastUpdatedAt: DateTime.now(),
         ),
       );
@@ -327,10 +349,7 @@ class AppController extends StateNotifier<AppState> {
   }
 
   void clearMessages() {
-    state = state.copyWith(
-      clearErrorMessage: true,
-      clearInfoMessage: true,
-    );
+    state = state.copyWith(clearErrorMessage: true, clearInfoMessage: true);
   }
 
   void _handleIncomingData(String chunk) {
@@ -440,21 +459,39 @@ class AppController extends StateNotifier<AppState> {
     String address,
   ) {
     return devices
-        .map((device) => device.copyWith(isConnected: device.address == address))
+        .map(
+          (device) => device.copyWith(isConnected: device.address == address),
+        )
         .toList();
   }
 
   List<BluetoothDeviceInfo> _clearConnected(List<BluetoothDeviceInfo> devices) {
-    return devices.map((device) => device.copyWith(isConnected: false)).toList();
+    return devices
+        .map((device) => device.copyWith(isConnected: false))
+        .toList();
   }
 
-  List<BluetoothDeviceInfo> _mergeConnectionFlags(List<BluetoothDeviceInfo> devices) {
+  List<BluetoothDeviceInfo> _mergeConnectionFlags(
+    List<BluetoothDeviceInfo> devices,
+  ) {
     final address = state.connectedDevice?.address;
     if (address == null) {
       return devices;
     }
 
     return _markConnected(devices, address);
+  }
+
+  double _normalizeManualSpeed(double speed) {
+    final normalized = speed.round().clamp(
+      0,
+      AppConstants.maxManualSpeedCommand,
+    );
+    return normalized.toDouble();
+  }
+
+  String _manualSpeedCommand(double speed) {
+    return _normalizeManualSpeed(speed).round().toString();
   }
 
   @override

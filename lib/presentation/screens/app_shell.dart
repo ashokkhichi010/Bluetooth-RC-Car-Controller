@@ -380,21 +380,24 @@ class _SpeedCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Speed',
+                'Speed (0-9)',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const Spacer(),
               Text(
-                '${speed.round()}',
+                '${speed.round()} / ${AppConstants.maxManualSpeedCommand}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ),
           Slider(
-            value: speed.clamp(0, AppConstants.maxSpeed),
+            value: speed.clamp(
+              0,
+              AppConstants.maxManualSpeedCommand.toDouble(),
+            ),
             min: 0,
-            max: AppConstants.maxSpeed,
-            divisions: AppConstants.maxSpeed.toInt(),
+            max: AppConstants.maxManualSpeedCommand.toDouble(),
+            divisions: AppConstants.maxManualSpeedCommand,
             label: '${speed.round()}',
             onChanged: onChanged,
             onChangeEnd: onChangeEnd,

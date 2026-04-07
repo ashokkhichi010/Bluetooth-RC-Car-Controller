@@ -3,7 +3,8 @@ class AppConstants {
 
   static const String appTitle = 'RC Car Controller';
   static const double maxSpeed = 255;
-  static const double defaultManualSpeed = 140;
+  static const int maxManualSpeedCommand = 9;
+  static const double defaultManualSpeed = 5;
   static const Duration defaultAnimationDuration = Duration(milliseconds: 320);
   static const Duration scanTimeout = Duration(seconds: 12);
   static const Duration reconnectDelay = Duration(milliseconds: 600);

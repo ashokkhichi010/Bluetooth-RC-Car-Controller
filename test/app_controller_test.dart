@@ -43,6 +43,21 @@ void main() {
 
       controller.dispose();
     });
+
+    test('sends speed commands as a single digit from 0 to 9', () async {
+      final repository = FakeBluetoothRepository()..connected = true;
+      final controller = AppController(repository, autoInitialize: false);
+
+      repository.emitConnection(true);
+      await controller.sendSpeedValue(18);
+
+      expect(repository.sentCommands, ['9']);
+      expect(repository.savedManualSpeed, 9);
+      expect(controller.state.manualSpeed, 9);
+      expect(controller.state.carState.speed, 9);
+
+      controller.dispose();
+    });
   });
 }
 
@@ -54,6 +69,7 @@ class FakeBluetoothRepository implements BluetoothRepository {
 
   final List<String> sentCommands = <String>[];
   bool connected = false;
+  double? savedManualSpeed;
 
   @override
   Stream<String> get incomingData => _incomingController.stream;
@@ -102,7 +118,9 @@ class FakeBluetoothRepository implements BluetoothRepository {
   Future<void> saveLastDevice(BluetoothDeviceInfo device) async {}
 
   @override
-  Future<void> saveManualSpeed(double speed) async {}
+  Future<void> saveManualSpeed(double speed) async {
+    savedManualSpeed = speed;
+  }
 
   @override
   Future<void> sendCommand(String command) async {
