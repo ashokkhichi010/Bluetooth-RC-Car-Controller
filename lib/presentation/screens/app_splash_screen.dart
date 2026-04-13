@@ -125,7 +125,7 @@ class _SplashScene extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Booting drive systems and syncing Bluetooth controls.',
+                      'Booting Firebase control plane and syncing live telemetry.',
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: Colors.white.withValues(alpha: 0.76),
                         fontWeight: FontWeight.w500,

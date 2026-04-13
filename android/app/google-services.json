@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "589921364593",
+    "firebase_url": "https://image-typing-test-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "image-typing-test",
+    "storage_bucket": "image-typing-test.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589921364593:android:8e8d3208c1b7b915e009d0",
+        "android_client_info": {
+          "package_name": "rc.car.controller"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEHehCCtQ7IzpRJu6jgIYNya6pnaexrsg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -6,7 +6,7 @@ class AppTheme {
   static ThemeData get darkTheme {
     const seed = Color(0xFF1DB7A2);
     const surface = Color(0xFF10161D);
-    const surfaceAlt = Color(0xFF18212B);
+    // const surfaceAlt = Color(0xFF18212B);
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seed,

@@ -1,9 +1,6 @@
-import 'package:bluetooth_rc_car/core/constants/app_constants.dart';
-import 'package:bluetooth_rc_car/domain/models/app_state.dart';
-import 'package:bluetooth_rc_car/domain/models/bluetooth_device_info.dart';
-import 'package:bluetooth_rc_car/domain/models/car_state.dart';
+import 'package:bluetooth_rc_car/domain/models/robot_log_entry.dart';
+import 'package:bluetooth_rc_car/domain/models/robot_state.dart';
 import 'package:bluetooth_rc_car/presentation/providers/app_state_provider.dart';
-import 'package:bluetooth_rc_car/presentation/screens/command_settings_screen.dart';
 import 'package:bluetooth_rc_car/presentation/widgets/movement_visualizer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,407 +13,162 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  CarMode _activeMode = CarMode.manual;
-  MovementDirection? _gestureDirection;
-
   @override
   Widget build(BuildContext context) {
-    ref.listen<AppState>(appControllerProvider, (previous, next) {
-      final messenger = ScaffoldMessenger.of(context);
+    return StreamBuilder<RobotState>(
+      stream: ref.read(robotRepositoryProvider).watchRobotState(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _ErrorScaffold(message: snapshot.error.toString());
+        }
 
-      if (previous?.errorMessage != next.errorMessage &&
-          next.errorMessage != null) {
-        messenger.showSnackBar(SnackBar(content: Text(next.errorMessage!)));
-        ref.read(appControllerProvider.notifier).clearMessages();
-      } else if (previous?.infoMessage != next.infoMessage &&
-          next.infoMessage != null) {
-        messenger.showSnackBar(SnackBar(content: Text(next.infoMessage!)));
-        ref.read(appControllerProvider.notifier).clearMessages();
-      }
+        final state = snapshot.data ?? RobotState.initial();
+        final controller = ref.read(robotControllerProvider);
+        final speedValue = state.speed.clamp(0, 255);
 
-      if (_gestureDirection == null &&
-          next.carState.mode != CarMode.idle &&
-          next.carState.mode != _activeMode) {
-        setState(() => _activeMode = next.carState.mode);
-      }
-    });
-
-    final state = ref.watch(appControllerProvider);
-    final controller = ref.read(appControllerProvider.notifier);
-
-    return Scaffold(
-      body: Container(
-        color: const Color(0xFF0B1219),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: state.isConnected
-                ? _ConnectedHome(
-                    state: state,
-                    activeMode: _gestureDirection == null
-                        ? _activeMode
-                        : CarMode.manual,
-                    previewDirection: _gestureDirection,
-                    onFollowLine: () =>
-                        _activateMode(controller, CarMode.lineFollower),
-                    onAutoMode: () =>
-                        _activateMode(controller, CarMode.obstacleAvoidance),
-                    onFollowMe: () =>
-                        _activateMode(controller, CarMode.followMe),
-                    onSpeedChanged: controller.updateManualSpeed,
-                    onSpeedChangeEnd: controller.sendSpeedValue,
-                    onSwitchToManual: () => _switchToManual(controller),
-                    onDisconnect: controller.disconnect,
-                    onDirectionChanged: _handleGestureDirection,
-                    onInteractionEnd: _endManualInteraction,
-                  )
-                : _ConnectHome(
-                    state: state,
-                    onRefresh: controller.refreshDevices,
-                    onScan: controller.scanDevices,
-                    onOpenSettings: _openCommandSettings,
-                    onConnect: (device) =>
-                        controller.connect(device, showStatusMessage: true),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _activateMode(AppController controller, CarMode mode) async {
-    setState(() {
-      _gestureDirection = null;
-      _activeMode = mode;
-    });
-    await controller.activateMode(mode);
-  }
-
-  Future<void> _switchToManual(AppController controller) async {
-    if (_activeMode == CarMode.manual) {
-      return;
-    }
-
-    setState(() {
-      _gestureDirection = null;
-      _activeMode = CarMode.manual;
-    });
-    await controller.activateMode(CarMode.manual);
-  }
-
-  Future<void> _handleGestureDirection(MovementDirection direction) async {
-    if (_gestureDirection == direction) {
-      return;
-    }
-
-    final controller = ref.read(appControllerProvider.notifier);
-    final command = ref
-        .read(appControllerProvider)
-        .commandSettings
-        .commandForDirection(direction);
-    setState(() {
-      _gestureDirection = direction;
-      _activeMode = CarMode.manual;
-    });
-
-    await controller.sendManualCommand(
-      command,
-      direction: direction,
-    );
-  }
-
-  Future<void> _endManualInteraction() async {
-    final controller = ref.read(appControllerProvider.notifier);
-    final stopCommand = ref
-        .read(appControllerProvider)
-        .commandSettings
-        .commandForDirection(MovementDirection.stop);
-    setState(() => _gestureDirection = null);
-    await controller.sendManualCommand(
-      stopCommand,
-      direction: MovementDirection.stop,
-    );
-  }
-
-  Future<void> _openCommandSettings() async {
-    final settings = ref.read(appControllerProvider).commandSettings;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CommandSettingsScreen(initialSettings: settings),
-      ),
-    );
-  }
-}
-
-class _ConnectHome extends StatelessWidget {
-  const _ConnectHome({
-    required this.state,
-    required this.onRefresh,
-    required this.onScan,
-    required this.onOpenSettings,
-    required this.onConnect,
-  });
-
-  final AppState state;
-  final VoidCallback onRefresh;
-  final VoidCallback onScan;
-  final Future<void> Function() onOpenSettings;
-  final Future<void> Function(BluetoothDeviceInfo device) onConnect;
-
-  @override
-  Widget build(BuildContext context) {
-    final devices = <BluetoothDeviceInfo>[
-      ...state.pairedDevices,
-      ...state.discoveredDevices.where(
-        (device) => !state.pairedDevices.any(
-          (paired) => paired.address == device.address,
-        ),
-      ),
-    ];
-
-    return Column(
-      children: [
-        _StatusCard(
-          label: state.connectionStatus == ConnectionStatus.connecting
-              ? 'Connecting'
-              : 'Disconnected',
-          deviceName: state.lastSavedDevice?.name,
-          color: state.connectionStatus == ConnectionStatus.connecting
-              ? const Color(0xFFFFC857)
-              : const Color(0xFFFF6B6B),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton.filledTonal(
-                onPressed: onOpenSettings,
-                icon: const Icon(Icons.settings_rounded),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: onScan,
-                icon: state.isScanning
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black,
-                        ),
-                      )
-                    : const Icon(Icons.radar_rounded),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFF121A24),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: devices.isEmpty
-                ? Center(
-                    child: Text(
-                      state.isScanning
-                          ? 'Searching devices...'
-                          : 'No devices found',
-                      style: Theme.of(context).textTheme.titleMedium,
+        return Scaffold(
+          body: Container(
+            color: const Color(0xFF0B1219),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _StatusCard(
+                      label: _labelForMode(state.currentMode, state.isConnected),
+                      deviceName: state.isConnected
+                          ? 'Realtime Database Connected'
+                          : 'Robot disconnected',
+                      color: state.isConnected
+                          ? const Color(0xFF38D39F)
+                          : const Color(0xFFFF6B6B),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton.filledTonal(
+                            onPressed: () => _openLogs(context),
+                            icon: const Icon(Icons.notes_rounded),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: () => _openSpeedSheet(
+                              context,
+                              controller,
+                              speedValue.toDouble(),
+                            ),
+                            icon: const Icon(Icons.speed_rounded),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: devices.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final device = devices[index];
-                      return _DeviceTile(
-                        device: device,
-                        onConnect: () => onConnect(device),
-                      );
+                    const SizedBox(height: 12),
+                    _ModeGrid(
+                      activeMode: state.currentMode,
+                      onModeSelected: controller.changeMode,
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: MovementVisualizer(
+                        mode: state.currentMode,
+                        direction: state.direction,
+                        obstacleDistance: state.obstacleDistance,
+                        obstacleTooClose: state.obstacleTooClose,
+                        servoAngle: state.servoDirection,
+                        speed: state.speed,
+                        interactive: state.currentMode == RobotMode.manual,
+                        onDirectionChanged: (direction) {
+                          controller.sendMove(direction);
+                        },
+                        onInteractionEnd: () {
+                          controller.sendMove(MovementDirection.stop);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openLogs(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LogsScreen()),
+    );
+  }
+
+  Future<void> _openSpeedSheet(
+    BuildContext context,
+    RobotController controller,
+    double initialSpeed,
+  ) async {
+    double draft = initialSpeed;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF121A24),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Set Speed',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${draft.round()} / 255',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Slider(
+                    value: draft,
+                    min: 0,
+                    max: 255,
+                    divisions: 255,
+                    onChanged: (value) {
+                      setModalState(() => draft = value);
                     },
                   ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ConnectedHome extends StatelessWidget {
-  const _ConnectedHome({
-    required this.state,
-    required this.activeMode,
-    required this.previewDirection,
-    required this.onFollowLine,
-    required this.onAutoMode,
-    required this.onFollowMe,
-    required this.onSpeedChanged,
-    required this.onSpeedChangeEnd,
-    required this.onSwitchToManual,
-    required this.onDisconnect,
-    required this.onDirectionChanged,
-    required this.onInteractionEnd,
-  });
-
-  final AppState state;
-  final CarMode activeMode;
-  final MovementDirection? previewDirection;
-  final Future<void> Function() onFollowLine;
-  final Future<void> Function() onAutoMode;
-  final Future<void> Function() onFollowMe;
-  final ValueChanged<double> onSpeedChanged;
-  final Future<void> Function(double value) onSpeedChangeEnd;
-  final Future<void> Function() onSwitchToManual;
-  final Future<void> Function() onDisconnect;
-  final Future<void> Function(MovementDirection direction) onDirectionChanged;
-  final Future<void> Function() onInteractionEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    final displayDirection = previewDirection ?? state.carState.direction;
-    final displaySpeed = previewDirection == null
-        ? state.carState.speed
-        : previewDirection == MovementDirection.stop
-        ? 0
-        : state.manualSpeed.round();
-
-    return Column(
-      children: [
-        _StatusCard(
-          label: _labelForMode(activeMode),
-          deviceName: state.connectedDevice?.name,
-          color: const Color(0xFF38D39F),
-          trailing: IconButton.filledTonal(
-            onPressed: onDisconnect,
-            icon: const Icon(Icons.link_off_rounded),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _SpeedCard(
-          speed: state.manualSpeed,
-          onChanged: onSpeedChanged,
-          onChangeEnd: (value) {
-            onSpeedChangeEnd(value);
+                  FilledButton(
+                    onPressed: () async {
+                      // setState(() => _speedDraft = null);
+                      await controller.updateSpeed(draft.round());
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    child: const Text('Apply Speed'),
+                  ),
+                ],
+              ),
+            );
           },
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _ModeCard(
-                label: 'Follow Line',
-                icon: Icons.route_rounded,
-                selected: activeMode == CarMode.lineFollower,
-                onTap: onFollowLine,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ModeCard(
-                label: 'Auto Mode',
-                icon: Icons.sensors_rounded,
-                selected: activeMode == CarMode.obstacleAvoidance,
-                onTap: onAutoMode,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ModeCard(
-                label: 'Follow Me',
-                icon: Icons.person_pin_circle_rounded,
-                selected: activeMode == CarMode.followMe,
-                onTap: onFollowMe,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: MovementVisualizer(
-            mode: activeMode,
-            direction: displayDirection,
-            speed: displaySpeed,
-            interactive: activeMode == CarMode.manual,
-            onTap: activeMode == CarMode.manual
-                ? null
-                : () {
-                    onSwitchToManual();
-                  },
-            onDirectionChanged: (direction) {
-              onDirectionChanged(direction);
-            },
-            onInteractionEnd: () {
-              onInteractionEnd();
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  String _labelForMode(CarMode mode) {
+  String _labelForMode(RobotMode mode, bool connected) {
+    if (!connected) {
+      return 'Disconnected';
+    }
+
     return switch (mode) {
-      CarMode.lineFollower => 'Follow Line',
-      CarMode.obstacleAvoidance => 'Auto Mode',
-      CarMode.followMe => 'Follow Me',
-      CarMode.manual => 'Manual Control',
-      CarMode.idle => 'Connected',
+      RobotMode.line => 'Follow Line',
+      RobotMode.auto => 'Auto Mode',
+      RobotMode.follow => 'Follow Me',
+      RobotMode.manual => 'Manual Control',
     };
-  }
-}
-
-class _SpeedCard extends StatelessWidget {
-  const _SpeedCard({
-    required this.speed,
-    required this.onChanged,
-    required this.onChangeEnd,
-  });
-
-  final double speed;
-  final ValueChanged<double> onChanged;
-  final ValueChanged<double> onChangeEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121A24),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Speed (0-9)',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const Spacer(),
-              Text(
-                '${speed.round()} / ${AppConstants.maxManualSpeedCommand}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ],
-          ),
-          Slider(
-            value: speed.clamp(
-              0,
-              AppConstants.maxManualSpeedCommand.toDouble(),
-            ),
-            min: 0,
-            max: AppConstants.maxManualSpeedCommand.toDouble(),
-            divisions: AppConstants.maxManualSpeedCommand,
-            label: '${speed.round()}',
-            onChanged: onChanged,
-            onChangeEnd: onChangeEnd,
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -477,137 +229,162 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
-class _ModeCard extends StatelessWidget {
-  const _ModeCard({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final Future<void> Function() onTap;
+class _OfflineNotice extends StatelessWidget {
+  const _OfflineNotice();
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-        decoration: BoxDecoration(
-          color: selected
-              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.18)
-              : const Color(0xFF121A24),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0x33FF6D6D),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0x66FF6D6D)),
+      ),
+      child: const Text(
+        'The robot has not updated /last-seen for more than 1 minute, so it is shown as disconnected.',
       ),
     );
   }
 }
 
-class _DeviceTile extends StatelessWidget {
-  const _DeviceTile({required this.device, required this.onConnect});
+class _ModeGrid extends StatelessWidget {
+  const _ModeGrid({
+    required this.activeMode,
+    required this.onModeSelected,
+  });
 
-  final BluetoothDeviceInfo device;
-  final VoidCallback onConnect;
+  final RobotMode activeMode;
+  final Future<void> Function(RobotMode mode) onModeSelected;
 
   @override
   Widget build(BuildContext context) {
-    final resolvedName = device.name.trim().isEmpty
-        ? 'Unknown Device'
-        : device.name;
+    final items = <({RobotMode mode, String label, IconData icon})>[
+      (mode: RobotMode.manual, label: 'Manual', icon: Icons.gamepad_rounded),
+      (mode: RobotMode.line, label: 'Follow Line', icon: Icons.route_rounded),
+      (mode: RobotMode.auto, label: 'Auto Mode', icon: Icons.sensors_rounded),
+      (
+        mode: RobotMode.follow,
+        label: 'Follow Me',
+        icon: Icons.person_pin_circle_rounded,
+      ),
+    ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 360;
-
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.bluetooth_rounded),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            resolvedName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            device.address,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 2.3,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final selected = item.mode == activeMode;
+        return InkWell(
+          onTap: () => onModeSelected(item.mode),
+          borderRadius: BorderRadius.circular(18),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: selected
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.18)
+                  : const Color(0xFF121A24),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: selected
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.45)
+                    : Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(item.icon),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: onConnect,
-                    child: const Text('Connect'),
                   ),
-                ),
-              ],
-            );
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class LogsScreen extends ConsumerWidget {
+  const LogsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Logs')),
+      body: StreamBuilder<List<RobotLogEntry>>(
+        stream: ref.read(robotRepositoryProvider).watchLogs(),
+        builder: (context, snapshot) {
+          final logs = snapshot.data ?? const <RobotLogEntry>[];
+          if (logs.isEmpty) {
+            return const Center(child: Text('No logs yet'));
           }
 
-          return Row(
-            children: [
-              const Icon(Icons.bluetooth_rounded),
-              const SizedBox(width: 12),
-              Expanded(
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: logs.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final log = logs[index];
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF121A24),
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      resolvedName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      device.address,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text(log.message),
+                    if (log.timestamp != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        log.timestamp.toString(),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              FilledButton(onPressed: onConnect, child: const Text('Connect')),
-            ],
+              );
+            },
           );
         },
+      ),
+    );
+  }
+}
+
+class _ErrorScaffold extends StatelessWidget {
+  const _ErrorScaffold({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(message, textAlign: TextAlign.center),
+        ),
       ),
     );
   }

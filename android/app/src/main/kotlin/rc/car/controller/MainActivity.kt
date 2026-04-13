@@ -1,4 +1,4 @@
-package com.example.bluetooth_rc_car
+package rc.car.controller
 
 import io.flutter.embedding.android.FlutterActivity
 
