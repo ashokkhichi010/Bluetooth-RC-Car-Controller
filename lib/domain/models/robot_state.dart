@@ -6,7 +6,8 @@ class RobotState {
     required this.currentMode,
     required this.speed,
     required this.direction,
-    required this.lastSeen,
+    required this.lastSeenCounter,
+    required this.lastHeartbeatAt,
   });
 
   factory RobotState.initial() => const RobotState(
@@ -16,16 +17,26 @@ class RobotState {
         currentMode: RobotMode.manual,
         speed: 0,
         direction: MovementDirection.stop,
-        lastSeen: 0,
+    lastSeenCounter: 0,
+    lastHeartbeatAt: null,
       );
 
-  factory RobotState.fromMap(Map<Object?, Object?>? raw) {
+  factory RobotState.fromMap(
+    Map<Object?, Object?>? raw, {
+    required int? previousLastSeenCounter,
+    required DateTime? previousHeartbeatAt,
+    required DateTime observedAt,
+  }) {
     if (raw == null) {
       return RobotState.initial();
     }
 
     final obstacle = _mapFrom(raw['obstacl']);
     final car = _mapFrom(raw['car']);
+    final lastSeenCounter = _toInt(raw['last-seen'], 0);
+    final heartbeatAt = previousLastSeenCounter == lastSeenCounter
+        ? previousHeartbeatAt
+        : observedAt;
 
     return RobotState(
       obstacleDistance: _toDouble(obstacle['distance']),
@@ -34,7 +45,8 @@ class RobotState {
       currentMode: RobotModeX.fromWire(car['mode']?.toString()),
       speed: _toInt(car['speed'], 0),
       direction: MovementDirectionX.fromWire(car['direction']?.toString()),
-      lastSeen: _toInt(raw['last-seen'], 0),
+      lastSeenCounter: lastSeenCounter,
+      lastHeartbeatAt: heartbeatAt,
     );
   }
 
@@ -44,14 +56,16 @@ class RobotState {
   final RobotMode currentMode;
   final int speed;
   final MovementDirection direction;
-  final int lastSeen;
+  final int lastSeenCounter;
+  final DateTime? lastHeartbeatAt;
 
-  DateTime get lastSeenAt => DateTime.fromMillisecondsSinceEpoch(lastSeen);
+  DateTime? get lastSeenAt => lastHeartbeatAt;
 
   bool get shouldPlotPath => currentMode != RobotMode.manual;
   bool get isHeartbeatFresh =>
-      DateTime.now().millisecondsSinceEpoch - lastSeen <= 60000;
-  bool get isConnected => lastSeen > 0 && isHeartbeatFresh;
+      lastHeartbeatAt != null &&
+      DateTime.now().difference(lastHeartbeatAt!).inMilliseconds <= 5000;
+  bool get isConnected => lastSeenCounter > 0 && isHeartbeatFresh;
 
   static int _toInt(Object? value, int fallback) {
     if (value is int) {

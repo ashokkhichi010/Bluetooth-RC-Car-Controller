@@ -17,7 +17,8 @@ void main() {
         currentMode: RobotMode.manual,
         speed: 120,
         direction: MovementDirection.forward,
-        lastSeen: DateTime.now().millisecondsSinceEpoch,
+        lastSeenCounter: 12,
+        lastHeartbeatAt: DateTime.now(),
       ),
     );
 
@@ -49,7 +50,8 @@ void main() {
         currentMode: RobotMode.auto,
         speed: 100,
         direction: MovementDirection.right,
-        lastSeen: DateTime.now().millisecondsSinceEpoch,
+        lastSeenCounter: 8,
+        lastHeartbeatAt: DateTime.now(),
       ),
     );
 
@@ -92,4 +94,7 @@ class FakeRobotRepository implements RobotRepository {
   @override
   Stream<RobotState> watchRobotState() =>
       Stream.value(_initialState).asBroadcastStream();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

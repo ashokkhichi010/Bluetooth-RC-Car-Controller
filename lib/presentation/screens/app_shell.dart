@@ -25,6 +25,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         final state = snapshot.data ?? RobotState.initial();
         final controller = ref.read(robotControllerProvider);
         final speedValue = state.speed.clamp(0, 255);
+        final connectionTime = state.lastSeenCounter;
 
         return Scaffold(
           body: Container(
@@ -35,9 +36,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                 child: Column(
                   children: [
                     _StatusCard(
-                      label: _labelForMode(state.currentMode, state.isConnected),
+                      label: _labelForMode(
+                        state.currentMode,
+                        state.isConnected,
+                      ),
                       deviceName: state.isConnected
-                          ? 'Realtime Database Connected'
+                          ? 'Time: $connectionTime'
                           : 'Robot disconnected',
                       color: state.isConnected
                           ? const Color(0xFF38D39F)
@@ -95,9 +99,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   Future<void> _openLogs(BuildContext context) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const LogsScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const LogsScreen()));
   }
 
   Future<void> _openSpeedSheet(
@@ -229,31 +233,8 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
-class _OfflineNotice extends StatelessWidget {
-  const _OfflineNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0x33FF6D6D),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x66FF6D6D)),
-      ),
-      child: const Text(
-        'The robot has not updated /last-seen for more than 1 minute, so it is shown as disconnected.',
-      ),
-    );
-  }
-}
-
 class _ModeGrid extends StatelessWidget {
-  const _ModeGrid({
-    required this.activeMode,
-    required this.onModeSelected,
-  });
+  const _ModeGrid({required this.activeMode, required this.onModeSelected});
 
   final RobotMode activeMode;
   final Future<void> Function(RobotMode mode) onModeSelected;
@@ -300,13 +281,17 @@ class _ModeGrid extends StatelessWidget {
                 case FollowMeStatus.locationDisabled:
                   messenger.showSnackBar(
                     const SnackBar(
-                      content: Text('Turn on location services to use Follow Me.'),
+                      content: Text(
+                        'Turn on location services to use Follow Me.',
+                      ),
                     ),
                   );
                 case FollowMeStatus.permissionDenied:
                   messenger.showSnackBar(
                     const SnackBar(
-                      content: Text('Location permission is required for Follow Me.'),
+                      content: Text(
+                        'Location permission is required for Follow Me.',
+                      ),
                     ),
                   );
               }
@@ -319,12 +304,16 @@ class _ModeGrid extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               color: selected
-                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.18)
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.18)
                   : const Color(0xFF121A24),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: selected
-                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.45)
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.45)
                     : Colors.white.withValues(alpha: 0.05),
               ),
             ),
@@ -358,7 +347,15 @@ class LogsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Logs')),
+      appBar: AppBar(
+        title: const Text('Logs'),
+        actions: [
+          IconButton.filledTonal(
+            onPressed: ref.read(robotRepositoryProvider).deleteLogs,
+            icon: const Icon(Icons.delete_sweep),
+          ),
+        ],
+      ),
       body: StreamBuilder<List<RobotLogEntry>>(
         stream: ref.read(robotRepositoryProvider).watchLogs(),
         builder: (context, snapshot) {

@@ -5,9 +5,10 @@ import 'package:firebase_database/firebase_database.dart';
 
 class FirebaseRobotRepository implements RobotRepository {
   FirebaseRobotRepository({FirebaseDatabase? database})
-      : _database = database ?? FirebaseDatabase.instance;
+    : _database = database ?? FirebaseDatabase.instance;
 
   final FirebaseDatabase _database;
+  RobotState _lastKnownState = RobotState.initial();
 
   DatabaseReference get _root => _database.ref();
   DatabaseReference get _car => _root.child('car');
@@ -36,9 +37,12 @@ class FirebaseRobotRepository implements RobotRepository {
   }
 
   @override
-  Future<void> sendCommand({
-    required MovementDirection direction,
-  }) {
+  Future<void> deleteLogs() {
+    return _root.child('logs').remove();
+  }
+
+  @override
+  Future<void> sendCommand({required MovementDirection direction}) {
     return _car.child('direction').set(direction.label);
   }
 
@@ -47,10 +51,7 @@ class FirebaseRobotRepository implements RobotRepository {
     required double lat,
     required double lng,
   }) {
-    return _root.child('deviceLocation').set({
-      'lat': lat,
-      'lng': lng,
-    });
+    return _root.child('deviceLocation').set({'lat': lat, 'lng': lng});
   }
 
   @override
@@ -71,7 +72,14 @@ class FirebaseRobotRepository implements RobotRepository {
     return _root.onValue.map((event) {
       final raw = event.snapshot.value;
       final map = raw is Map ? Map<Object?, Object?>.from(raw) : null;
-      return RobotState.fromMap(map);
+      final next = RobotState.fromMap(
+        map,
+        previousLastSeenCounter: _lastKnownState.lastSeenCounter,
+        previousHeartbeatAt: _lastKnownState.lastHeartbeatAt,
+        observedAt: DateTime.now(),
+      );
+      _lastKnownState = next;
+      return next;
     });
   }
 }
