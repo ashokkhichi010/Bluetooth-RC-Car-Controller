@@ -7,6 +7,10 @@ abstract class RobotRepository {
   Future<void> sendCommand({
     required MovementDirection direction,
   });
+  Future<void> updateDeviceLocation({
+    required double lat,
+    required double lng,
+  });
   Future<void> updateSpeed(int speed);
   Future<void> updateMode(RobotMode mode);
 }

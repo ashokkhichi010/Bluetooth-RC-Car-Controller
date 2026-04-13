@@ -43,6 +43,17 @@ class FirebaseRobotRepository implements RobotRepository {
   }
 
   @override
+  Future<void> updateDeviceLocation({
+    required double lat,
+    required double lng,
+  }) {
+    return _root.child('deviceLocation').set({
+      'lat': lat,
+      'lng': lng,
+    });
+  }
+
+  @override
   Future<void> updateSpeed(int speed) {
     return _car.child('speed').set(speed);
   }

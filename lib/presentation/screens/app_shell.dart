@@ -285,7 +285,36 @@ class _ModeGrid extends StatelessWidget {
         final item = items[index];
         final selected = item.mode == activeMode;
         return InkWell(
-          onTap: () => onModeSelected(item.mode),
+          onTap: () async {
+            if (item.mode == RobotMode.follow) {
+              final status = await context.readFollowMe();
+              if (!context.mounted) {
+                return;
+              }
+              final messenger = ScaffoldMessenger.of(context);
+              switch (status) {
+                case FollowMeStatus.active:
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Follow Me mode activated.')),
+                  );
+                case FollowMeStatus.locationDisabled:
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Turn on location services to use Follow Me.'),
+                    ),
+                  );
+                case FollowMeStatus.permissionDenied:
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Location permission is required for Follow Me.'),
+                    ),
+                  );
+              }
+              return;
+            }
+
+            await onModeSelected(item.mode);
+          },
           borderRadius: BorderRadius.circular(18),
           child: Ink(
             decoration: BoxDecoration(
@@ -387,5 +416,12 @@ class _ErrorScaffold extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+extension on BuildContext {
+  Future<FollowMeStatus> readFollowMe() {
+    final container = ProviderScope.containerOf(this, listen: false);
+    return container.read(robotControllerProvider).activateFollowMe();
   }
 }
